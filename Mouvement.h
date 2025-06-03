@@ -7,8 +7,11 @@ extern float distanceParcourue;
 extern float distancex;
 extern float distancey;
 extern int etape;
+extern bool objectifAtteint;
+extern long enc1_avant , enc2_avant ;
 extern const float margeArret;
 extern int TICKS_90_DEGRES;
+extern int essais;
 typedef enum {
   None,
   Gauche,
@@ -21,9 +24,12 @@ typedef enum{
   Y
 }Deplacementprec;
 
+
+
 extern Actionprec actionprec;
 extern Deplacementprec deplacementprec;
 
+void initVar();
 void avancer(float vitesseInitiale, float vitesseMinimale, float distanceCible);
 void reculer(float vitesseInitiale, float vitesseMinimale, float distanceCible);
 void tournerDroite(Position pos);
@@ -31,6 +37,10 @@ void tournerGauche(Position pos);
 void ajustementangle(float angle, int vitesse);
 void reglerPosition(Position PosElement);
 //void reglerPosition1(Position PosElement);
+float normaliserAngle(float angle);
+float radToDeg(float radians);
+float degToRad(float degrees);
+void tourner180(Position pos);
 void calibrer90Degres();
 
 #endif

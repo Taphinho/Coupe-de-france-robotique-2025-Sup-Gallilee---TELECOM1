@@ -5,44 +5,71 @@
 
 
 
-Position Plat1 ={0.78,0.25,180,millis(),0.1,0.4 };
+Position Plat1 ={0.78,0.25,180,millis(),0.4,0.1 };
 
-Position Plat2 = {1.10, 0.95,180,millis(),0.1,0.4};
+Position Plat2 = {1.10, 0.95,180,millis(),0.4,0.1};
 
-Position pos;
 
 void setup() {
+  initVar();
   Serial.begin(115200);
+  Wire.begin(); // Nécessaire pour la communication I2C
+
+  // Attente du démarrage du MD25
+  Serial.println("Vérification du MD25...");
+  while (!md25Ready()) {
+    Serial.println("MD25 non détecté, attente...");
+    delay(500);
+  }
+  
+  Serial.println("MD25 détecté !");
   initOdometry();
   initMD25();
+  //definirVitesse(2, 2);
   resetEncodeurs();
-  delay(100);
-  pos = Plat1;
-  Serial.println("Système prêt");
-}
-
-void loop() {
   delay(1000);
+  //pos = Plat1;
+  Serial.println("Système prêt 1");
+}
+void loop() {
+  resetEncodeurs();
   switch(etape) {
     case 1:
+      //Serial.println("here");
+      if(essais>5){
+        initMD25();
+        resetEncodeurs();
+        delay(500);
+      }
+      essais=0;
       distanceParcourue = 0.0;
-      reglerPosition(pos);
+      
+      reglerPosition(Plat1);
+      Serial.println(etape);
       break;
     case 2:
-      delay(1000);
+    distancex=fabs(robotPosition.x - Plat1.x);
+    distancey= fabs(robotPosition.y - Plat1.y);
+    objectifAtteint=0;
+    resetEncodeurs();
+     delay(1000);
       if(deplacementprec==X){
         avancer(-30, -10, distancey);
       }else{
         avancer(-30, -10, distancex);
+      
+        Serial.println("hi thera");
       } 
       
-      resetEncodeurs();
+      
       break;
     case 3:
+       printf("here 3");
       distanceParcourue = 0.0;
-      reglerPosition(pos);
+      reglerPosition(Plat1);
       break;
     case 4:
+     printf("here 3");
         delay(1000);
       if(deplacementprec==X){
         avancer(-30, -10, distancey);
@@ -52,11 +79,6 @@ void loop() {
       
       
       resetEncodeurs();
-      if(pos.x==Plat2.x && pos.y==Plat2.y){
-        definirVitesse(0,0);
-        exit(0);
-      }
-      pos = Plat2;
       break;
   }
   delay(10);

@@ -2,28 +2,53 @@
 #include <Arduino.h>
 #include <math.h>
 
-Position robotPosition = {1.25, 0, 0, 0, 0.23, 0.26};
+#define DEG_TO_RAD (PI / 180.0f)
+#define RAD_TO_DEG (180.0f / PI)
+
+Position robotPosition ;
 const int ticksParTour = 358;
 const float diametreRoue = 0.1;
 const float circonferenceRoue = PI * diametreRoue;
 
 void initOdometry() {
-  robotPosition = {1.25, 0, 0, millis(), 0.23, 0.26};
+  robotPosition = {1.25, 0, 180, millis(), 0.23, 0.26};
 }
 
-void updatePosition(float distanceRoue1, float distanceRoue2) {
-  float deplacement = (distanceRoue1 + distanceRoue2) / 2.0f;
-  float pente = (distanceRoue1 - distanceRoue2) / robotPosition.largeur;
-  float deltaTheta = atan(pente)*(180/PI);
+void updatePosition(float distanceRoue1, float distanceRoue2, AouR aour) {
   
-  robotPosition.x += deplacement * sin(deltaTheta);
-  robotPosition.y += deplacement * cos(deltaTheta);
-  robotPosition.theta += deltaTheta;
-  while(robotPosition.theta >= 360.0f)robotPosition.theta -= 360.0f;
-  while(robotPosition.theta < 0.0f)robotPosition.theta +=360.0f;
-  
-  //robotPosition.theta = atan2(sin(robotPosition.theta), cos(robotPosition.theta));
-  robotPosition.lastUpdate = millis();
+    const float largeur = robotPosition.largeur;
+    float deltaThetaRad = (distanceRoue1 - distanceRoue2) / largeur;
+    float deplacement = 0.5f * (distanceRoue1 + distanceRoue2);
+    
+    if(aour == Reculer){
+        deplacement = -deplacement;
+        deltaThetaRad = -deltaThetaRad;
+    }
+    float thetaDeg = robotPosition.theta;
+    float thetaRad = thetaDeg * DEG_TO_RAD;
+    //float thetaRadNew = thetaRad + deltaThetaRad;
+
+    if (fabs(deltaThetaRad) < 0.3f) {
+        // Déplacement linéaire
+     robotPosition.x += deplacement * sin(thetaRad);
+     robotPosition.y += deplacement * cos(thetaRad);
+    } else {
+        // Mouvement circulaire
+        float rayon = deplacement / deltaThetaRad;
+        float thetaRadNew = thetaRad + deltaThetaRad;
+
+        robotPosition.x += rayon * (sin(thetaRadNew) - sin(thetaRad));
+        robotPosition.y -= rayon * (cos(thetaRadNew) - cos(thetaRad));
+
+        thetaRad = thetaRadNew;
+    }
+
+    // Conversion et normalisation en degrés
+    thetaDeg = fmod(thetaRad * RAD_TO_DEG, 360.0f);
+    if (thetaDeg < 0.0f) thetaDeg += 360.0f;
+
+    robotPosition.theta = thetaDeg;
+    robotPosition.lastUpdate = millis();
 }
 
 Position getCurrentPosition() {
