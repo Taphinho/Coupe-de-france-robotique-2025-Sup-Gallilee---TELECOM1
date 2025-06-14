@@ -64,3 +64,9 @@ void definirVitesse(float vitesse1, float vitesse2) {
   Wire.endTransmission();
   delay(10);
 }
+void stopMotors() {
+  // Méthode 1 : Si vous utilisez le MD25 avec la librairie standard
+  definirVitesse(0, 0);  // Met les 2 moteurs à vitesse 0
+  
+  Serial.println("Moteurs arrêtés");  // Debug
+}

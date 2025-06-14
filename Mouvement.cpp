@@ -2,7 +2,13 @@
 #include "Motor.h"
 #include "Odometry.h"
 #include <Arduino.h>
+#include "ultrasons.h"
 
+#define ECHO_PIN_AVANT_1 4
+#define ECHO_PIN_AVANT_2 5
+#define ECHO_PIN_ARRIERE_1 2
+#define ECHO_PIN_ARRIERE_2 3
+#define OBSTACLE_DISTANCE 10.0
 
 float distanceParcourue;
 float distancex;
@@ -18,6 +24,25 @@ int essais;
 long enc1_avant;
 long enc2_avant;
 
+bool obstacleDetected() {
+  float dist_avant1 = lireDistanceUltrason(ECHO_PIN_AVANT_1);
+  float dist_avant2 = lireDistanceUltrason(ECHO_PIN_AVANT_2);
+  float dist_arriere1 = lireDistanceUltrason(ECHO_PIN_ARRIERE_1);
+  float dist_arriere2 = lireDistanceUltrason(ECHO_PIN_ARRIERE_2);
+  printDistance("Avant 1: ", dist_avant1);
+  printDistance("Avant 2: ", dist_avant2);
+  printDistance("Arriere 1: ", dist_arriere1);
+  printDistance("Arriere 2: ", dist_arriere2);
+  Serial.println("------------------");
+
+  return (
+    dist_avant1 < OBSTACLE_DISTANCE || 
+    dist_avant2 < OBSTACLE_DISTANCE ||
+    dist_arriere1 < OBSTACLE_DISTANCE || 
+    dist_arriere2 < OBSTACLE_DISTANCE
+  );
+}
+
 void initVar() {
   distanceParcourue = 0.0;
   distancex = 0;
@@ -27,7 +52,7 @@ void initVar() {
   actionprec = None;
   deplacementprec = Rien;
   aour = R;
-  TICKS_90_DEGRES = 169;
+  TICKS_90_DEGRES = 168;
   enc1_avant = 0;
   enc2_avant = 0;
   essais = 0;
@@ -64,9 +89,13 @@ void avancer(float vitesseInitiale, float vitesseMinimale, float distanceCible) 
     definirVitesse(0.0f, 0.0f);
     etape++;
     objectifAtteint=1;
+    if(deplacementprec == X){
+
+    }
     Serial.print(F("ARRET - Distance finale: "));  // F() pour économiser la RAM
     Serial.print(distanceParcourue * 100.0f, 2);   // 2 décimales
     Serial.println(F(" cm"));
+    printPosition();
     //distanceParcourue = 0.0f; // Réinitialisation pour le prochain mouvement
     return;
   }
@@ -192,6 +221,9 @@ void tournerGauche(Position pos) {
     ticks = (enc1 - enc2) / 2;
     enc1_avant = enc1;
     enc2_avant = enc2;
+    float delta1 = (enc1 - enc1_avant) / (float)ticksParTour * circonferenceRoue;
+    float delta2 = (enc2 - enc2_avant) / (float)ticksParTour * circonferenceRoue;
+    updatePosition(delta1,delta1,aour);
     delay(10);
   }
   definirVitesse(0, 0);
@@ -208,15 +240,22 @@ void tournerDroites(Position pos) {
     ticks = (enc1 - enc2) / 2;
     enc1_avant = enc1;
     enc2_avant = enc2;
+    float delta1 = (enc1 - enc1_avant) / (float)ticksParTour * circonferenceRoue;
+    float delta2 = (enc2 - enc2_avant) / (float)ticksParTour * circonferenceRoue;
+    //updatePosition(delta1,delta1,aour);
+   
     delay(10);
   }
+  float thetadeg = fmod(robotPosition.theta+90, 360.0f);
+  robotPosition.theta=thetadeg;
   definirVitesse(0, 0);
   //ajustementangle(pos.theta,1);
 }
 void tournerGauches(Position pos) {
   resetEncodeurs();
   definirVitesse(-30, 30);
-
+  Serial.println("avant");
+  printPosition();
   long ticks = 0;
   while (abs(ticks) < TICKS_90_DEGRES) {
     long enc1 = lireEncodeur(ENCODER1);
@@ -224,8 +263,17 @@ void tournerGauches(Position pos) {
     ticks = (enc1 - enc2) / 2;
     enc1_avant = enc1;
     enc2_avant = enc2;
+    float delta1 = (enc1 - enc1_avant) / (float)ticksParTour * circonferenceRoue;
+    float delta2 = (enc2 - enc2_avant) / (float)ticksParTour * circonferenceRoue;
+    //updatePosition(delta1,delta1,aour);
+    
     delay(10);
   }
+
+  float thetadeg = fmod(robotPosition.theta-90, 360.0f);
+  robotPosition.theta=thetadeg;
+  Serial.println("apres");
+  printPosition();
   definirVitesse(0, 0);
   //ajustementangle(pos.theta,1);
 }
@@ -324,6 +372,11 @@ float normaliserAngle(float angle) {
 
 void reglerPosition(Position PosElement) {
   if (etape == 3) {
+      if(deplacementprec==X){
+        deplacementprec=Y;
+      }else{
+        deplacementprec=X;
+      }
     switch (actionprec) {
       case Gauche:
         tournerDroites(PosElement);
@@ -342,8 +395,9 @@ void reglerPosition(Position PosElement) {
   //tourner180(PosElement);
   // ajustementangle(180, 5);
   // Calcul des centres du robot et de l'élément
-  float robot_centre_x = robotPosition.x;
-  float robot_centre_y = robotPosition.y;
+
+  float robot_centre_x = robotPosition.x ;
+  float robot_centre_y = robotPosition.y ;
   float objet_centre_x = PosElement.x;
   float objet_centre_y = PosElement.y;
 
@@ -351,74 +405,8 @@ void reglerPosition(Position PosElement) {
   float dy = robot_centre_y - objet_centre_y;
 
   switch (int(PosElement.theta)) {
-    case 0:  // Objet regarde vers le haut (Y+), robot doit être derrière => y > objet
-      deplacementprec = Y;
-      if (robot_centre_y <= objet_centre_y) {
-        if (robot_centre_x < objet_centre_x) {
-          tournerDroites(PosElement);
-          actionprec = Droite;
-        } else {
-          tournerGauches(PosElement);
-          actionprec = Gauche;
-        }
-      } else {
-        if (fabs(dx) < (PosElement.largeur + robotPosition.largeur) / 2) {
-          if (robot_centre_x < objet_centre_x) {
-            tournerGauches(PosElement);
-          } else {
-            tournerDroites(PosElement);
-          }
-
-          while (distanceParcourue < PosElement.largeur / 2) {
-            avancer(-10, -10, PosElement.largeur / 2);
-          };
-          distanceParcourue = 0.0f;
-          ajustementangle(PosElement.theta, 5);
-        }
-        definirVitesse(5,5);
-        while (distanceParcourue < fabs(dy) + 2 * PosElement.longueur + robotPosition.longueur) {
-          printf("ici 0");
-          reculer(-10, -10, fabs(dy) + 2 * PosElement.longueur + robotPosition.longueur);
-        }
-        distanceParcourue = 0.0f;
-        return;
-      }
-      break;
-
-    case 90:  // Objet regarde vers la droite (X+), robot doit être derrière => x > objet
-      deplacementprec = X;
-
-      if (robot_centre_x <= objet_centre_x) {
-        if (robot_centre_y < objet_centre_y) {
-          tournerDroites(PosElement);
-          actionprec = Droite;
-        } else {
-          tournerGauches(PosElement);
-          actionprec = Gauche;
-        }
-      } else {
-        if (fabs(dy) < (PosElement.longueur + robotPosition.longueur) / 2) {
-          if (robot_centre_y < objet_centre_y) {
-            tournerDroites(PosElement);
-          } else {
-            tournerGauches(PosElement);
-          }
-
-          while (distanceParcourue < PosElement.longueur / 2) {
-            avancer(-10, -10, PosElement.longueur / 2);
-          }
-          distanceParcourue = 0.0f;
-          ajustementangle(PosElement.theta, 5);
-        }
-
-        while (distanceParcourue < fabs(dx) + 1.2 * PosElement.largeur + robotPosition.largeur) {
-          printf("ici 90");
-          reculer(-10, -10, fabs(dx) + 1.2 * PosElement.largeur + robotPosition.largeur);
-        }
-        distanceParcourue = 0.0f;
-        return;
-      }
-      break;
+    
+    
 
     case 180:  // Objet regarde vers le bas (Y−), robot doit être derrière => y < objet
       deplacementprec = Y;
@@ -437,20 +425,66 @@ void reglerPosition(Position PosElement) {
           Serial.println("dis");
         }
       } else {
+        resetEncodeurs();
         if (fabs(dx) < (PosElement.largeur + robotPosition.largeur) / 2) {
-          if (robot_centre_x < objet_centre_x) {
-            tournerDroites(PosElement);
-          } else {
-            tournerGauches(PosElement);
-          }
-
-          while (distanceParcourue < PosElement.largeur / 2) {
-            avancer(-10, -10, PosElement.largeur / 2);
+          while (distanceParcourue <= 0.07) {
+           
+            reculer(10, 10, 0.07);
           }
           distanceParcourue = 0.0f;
+          if (robot_centre_x < objet_centre_x) {
+            
+            tournerDroites(PosElement);
+            actionprec = Droite ;
+          } else {
+            tournerGauches(PosElement);
+             actionprec = Gauche ;
+              Serial.println("HELLO");
+          }
+
+          aour = Avancer;
+          distanceParcourue = 0.0f;
+          resetEncodeurs();
+          while (distanceParcourue <= PosElement.largeur / 2) {
+           
+            avancer(-10, -10, PosElement.largeur / 2);
+          }
+          resetEncodeurs();
+          distanceParcourue = 0.0f;
+         
+          resetEncodeurs();
+          if(actionprec == Gauche){
+            tournerDroites(PosElement);
+            actionprec = Droite ;
+          }
+          else{
+            tournerGauches(PosElement);
+            actionprec = Gauche ;
+          }
+          float cmp = fabs(dy) + PosElement.longueur/2 + robotPosition.longueur;
+          aour = Reculer;
+          objectifAtteint=0;
+          resetEncodeurs();
+          while (!objectifAtteint) {
+            if(essais>5){
+              return;
+            }
+            
+            reculer(10, 10, cmp);
+          
+            //cmp = fabs(dy) + PosElement.longueur + robotPosition.longueur;
+          }
+          resetEncodeurs();
+
+
+          distanceParcourue = 0.0f;
+          tournerDroites(PosElement);
+          actionprec = Droite ;
+          return;
           //ajustementangle(PosElement.theta,5);
         } else {
-          float cmp = fabs(dy) + PosElement.longueur + robotPosition.longueur;
+          
+          float cmp = fabs(dy) + PosElement.longueur/2 + robotPosition.longueur;
           aour = Reculer;
           resetEncodeurs();
           while (!objectifAtteint) {
@@ -467,40 +501,6 @@ void reglerPosition(Position PosElement) {
         return;
       }
       break;
-
-    case 270:  // Objet regarde vers la gauche (X−), robot doit être derrière => x < objet
-      deplacementprec = X;
-      if (robot_centre_x >= objet_centre_x) {
-        if (robot_centre_y < objet_centre_y) {
-          tournerDroites(PosElement);
-          actionprec = Droite;
-        } else {
-          tournerGauches(PosElement);
-          actionprec = Gauche;
-        }
-      } else {
-        if (fabs(dy) < (PosElement.longueur + robotPosition.longueur) / 2) {
-          if (robot_centre_y < objet_centre_y) {
-            tournerGauches(PosElement);
-          } else {
-            tournerDroites(PosElement);
-          }
-
-          while (distanceParcourue < PosElement.longueur / 2) {
-            avancer(-10, -10, PosElement.longueur / 2);
-          }
-          distanceParcourue = 0.0f;
-          ajustementangle(PosElement.theta, 5);
-        }
-
-        while (distanceParcourue < fabs(dx) + 2 * PosElement.largeur + robotPosition.largeur) {
-          reculer(-10, -10, fabs(dx) + 2 * PosElement.largeur + robotPosition.largeur);
-        }
-        distanceParcourue = 0.0f;
-        return;
-      }
-      break;
-
     default:
       return;  // Orientation inconnue
   }

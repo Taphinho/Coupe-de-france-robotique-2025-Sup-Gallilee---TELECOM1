@@ -11,18 +11,22 @@ const float diametreRoue = 0.1;
 const float circonferenceRoue = PI * diametreRoue;
 
 void initOdometry() {
-  robotPosition = {1.25, 0, 180, millis(), 0.23, 0.26};
+  //robotPosition = {1.24, 0.13, 180, millis(), 0.23, 0.26};
+   robotPosition = {1.8, 0.13, 180, millis(), 0.23, 0.26};
 }
 
 void updatePosition(float distanceRoue1, float distanceRoue2, AouR aour) {
   
     const float largeur = robotPosition.largeur;
     float deltaThetaRad = (distanceRoue1 - distanceRoue2) / largeur;
-    float deplacement = 0.5f * (distanceRoue1 + distanceRoue2);
+    float deplacement = 0.5f * fabs(distanceRoue1 + distanceRoue2);
+    //erial.print("Deplacement : ");
+    //Serial.println( deplacement);
     
     if(aour == Reculer){
         deplacement = -deplacement;
         deltaThetaRad = -deltaThetaRad;
+      
     }
     float thetaDeg = robotPosition.theta;
     float thetaRad = thetaDeg * DEG_TO_RAD;
@@ -31,12 +35,15 @@ void updatePosition(float distanceRoue1, float distanceRoue2, AouR aour) {
     if (fabs(deltaThetaRad) < 0.3f) {
         // Déplacement linéaire
      robotPosition.x += deplacement * sin(thetaRad);
+    
      robotPosition.y += deplacement * cos(thetaRad);
     } else {
         // Mouvement circulaire
+        deplacement = 0.5f * (distanceRoue1 + distanceRoue2);
         float rayon = deplacement / deltaThetaRad;
         float thetaRadNew = thetaRad + deltaThetaRad;
-
+        Serial.print("hetanew: ");
+        Serial.println(thetaRadNew);
         robotPosition.x += rayon * (sin(thetaRadNew) - sin(thetaRad));
         robotPosition.y -= rayon * (cos(thetaRadNew) - cos(thetaRad));
 

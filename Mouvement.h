@@ -12,6 +12,7 @@ extern long enc1_avant , enc2_avant ;
 extern const float margeArret;
 extern int TICKS_90_DEGRES;
 extern int essais;
+extern AouR aour;
 typedef enum {
   None,
   Gauche,
@@ -30,10 +31,13 @@ extern Actionprec actionprec;
 extern Deplacementprec deplacementprec;
 
 void initVar();
+bool obstacleDetected();
 void avancer(float vitesseInitiale, float vitesseMinimale, float distanceCible);
 void reculer(float vitesseInitiale, float vitesseMinimale, float distanceCible);
 void tournerDroite(Position pos);
 void tournerGauche(Position pos);
+void tournerGauches(Position pos);
+void tournerDroites(Position pos);
 void ajustementangle(float angle, int vitesse);
 void reglerPosition(Position PosElement);
 //void reglerPosition1(Position PosElement);

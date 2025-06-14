@@ -13,8 +13,10 @@
 
 void initMD25();
 bool md25Ready();
+
 void resetEncodeurs();
 long lireEncodeur(int registre);
 void definirVitesse(float vitesse1, float vitesse2);
+void stopMotors();
 
 #endif
